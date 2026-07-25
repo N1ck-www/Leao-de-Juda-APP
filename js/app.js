@@ -62,6 +62,7 @@ auth.onAuthStateChanged(async (user) => {
     currentUser = null;
     loginScreen.hidden = false;
     appShell.hidden = true;
+    hideLoadingScreen();
     return;
   }
 
@@ -81,6 +82,7 @@ auth.onAuthStateChanged(async (user) => {
 
   loginScreen.hidden = true;
   appShell.hidden = false;
+  hideLoadingScreen();
   $("user-name").textContent = currentUser.name;
 
   applyRoleUI();
@@ -489,6 +491,11 @@ function showToast(msg) {
   toast.hidden = false;
   clearTimeout(showToast._t);
   showToast._t = setTimeout(() => { toast.hidden = true; }, 2400);
+}
+
+function hideLoadingScreen() {
+  const el = $("loading-screen");
+  if (el && !el.hidden) el.hidden = true;
 }
 
 // registra o service worker (deixa o app instalável / funcionando offline)
