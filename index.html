@@ -132,6 +132,32 @@
       <div id="team-list" class="team-list"></div>
     </section>
 
+    <!-- ---------- DÍVIDAS (somente dono) ---------- -->
+    <section id="view-dividas" class="view">
+      <h2 class="view-title">Dívidas de clientes</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-value" id="stat-divida-total" style="font-size:20px;">R$ 0,00</span>
+          <span class="stat-label">A receber</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value" id="stat-divida-clientes">0</span>
+          <span class="stat-label">Clientes devendo</span>
+        </div>
+        <div class="stat-card stat-danger">
+          <span class="stat-value" id="stat-divida-atrasadas">0</span>
+          <span class="stat-label">Atrasadas</span>
+        </div>
+      </div>
+
+      <div class="search-row">
+        <input type="search" id="debt-search-input" placeholder="Buscar cliente...">
+      </div>
+
+      <div id="debts-list" class="product-list"></div>
+      <p id="debts-empty" class="empty-state" hidden>Nenhuma dívida registrada.</p>
+    </section>
+
   </main>
 
   <nav class="bottom-nav" id="bottom-nav">
@@ -147,9 +173,13 @@
     <button class="nav-btn" data-view="equipe" id="nav-equipe" hidden>
       <span class="nav-icon">☺</span><span>Equipe</span>
     </button>
+    <button class="nav-btn" data-view="dividas" id="nav-dividas" hidden>
+      <span class="nav-icon">💰</span><span>Dívidas</span>
+    </button>
   </nav>
 
   <button id="fab-add-product" class="fab" title="Adicionar produto" hidden>+</button>
+  <button id="fab-add-debt" class="fab" title="Adicionar dívida" hidden>+</button>
 </div>
 
 <!-- ====================== MODAL PRODUTO ====================== -->
@@ -192,6 +222,87 @@
 
       <div class="modal-actions">
         <button type="button" id="product-delete-btn" class="btn btn-danger" hidden>Excluir</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ====================== MODAL DÍVIDA ====================== -->
+<div id="debt-modal" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="debt-modal-title">Nova dívida</h3>
+      <button class="icon-btn" id="debt-modal-close" aria-label="Fechar">✕</button>
+    </div>
+
+    <form id="debt-form">
+      <input type="hidden" id="debt-id">
+
+      <label class="field">
+        <span>Nome do cliente</span>
+        <input type="text" id="debt-customer-name" required>
+      </label>
+      <label class="field">
+        <span>Telefone (opcional)</span>
+        <input type="tel" id="debt-customer-phone" placeholder="(00) 00000-0000">
+      </label>
+      <label class="field">
+        <span>Produto</span>
+        <input type="text" id="debt-product">
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>Valor total</span>
+          <input type="number" id="debt-total-amount" min="0" step="0.01" required>
+        </label>
+        <label class="field">
+          <span>Data</span>
+          <input type="date" id="debt-date" required>
+        </label>
+      </div>
+
+      <label class="field" style="display:flex; align-items:center; gap:8px; flex-direction:row;">
+        <input type="checkbox" id="debt-installments" style="width:auto;">
+        <span style="margin:0;">Parcelado</span>
+      </label>
+      <label class="field" id="debt-installment-count-field" hidden>
+        <span>Número de parcelas</span>
+        <input type="number" id="debt-installment-count" min="1" step="1">
+      </label>
+
+      <label class="field">
+        <span>Data prevista de pagamento (opcional)</span>
+        <input type="date" id="debt-due-date">
+      </label>
+
+      <label class="field">
+        <span>Observações</span>
+        <input type="text" id="debt-notes" placeholder="Ex: pagar até dia 10">
+      </label>
+
+      <p id="debt-error" class="error-text" hidden></p>
+
+      <div id="debt-payments-section" hidden>
+        <h3 class="section-subtitle">Pagamentos</h3>
+        <p id="debt-remaining-display" style="font-weight:700; margin:0 0 10px;"></p>
+        <div id="debt-payments-list"></div>
+
+        <div class="field-row" style="margin-top:10px;">
+          <label class="field">
+            <span>Valor do pagamento</span>
+            <input type="number" id="debt-payment-amount" min="0" step="0.01">
+          </label>
+          <label class="field">
+            <span>Data</span>
+            <input type="date" id="debt-payment-date">
+          </label>
+        </div>
+        <button type="button" id="debt-add-payment-btn" class="btn btn-primary btn-block">Registrar pagamento</button>
+      </div>
+
+      <div class="modal-actions" style="margin-top:16px;">
+        <button type="button" id="debt-delete-btn" class="btn btn-danger" hidden>Excluir</button>
         <button type="submit" class="btn btn-primary">Salvar</button>
       </div>
     </form>
