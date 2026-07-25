@@ -205,7 +205,7 @@ button, input { font-family: inherit; }
 
 /* ---------------- PRODUTOS ---------------- */
 .search-row { margin-bottom: 12px; }
-#search-input {
+.search-row input {
   width: 100%;
   padding: 12px 14px;
   border-radius: 10px;
