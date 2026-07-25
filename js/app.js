@@ -56,6 +56,7 @@ auth.onAuthStateChanged(async (user) => {
   if (unsubProducts) { unsubProducts(); unsubProducts = null; }
   if (unsubHistory) { unsubHistory(); unsubHistory = null; }
   if (unsubTeam) { unsubTeam(); unsubTeam = null; }
+  if (unsubDebts) { unsubDebts(); unsubDebts = null; }
 
   if (!user) {
     currentUser = null;
@@ -85,12 +86,16 @@ auth.onAuthStateChanged(async (user) => {
   applyRoleUI();
   startProductsListener();
   startHistoryListener();
-  if (currentUser.role === "dono") startTeamListener();
+  if (currentUser.role === "dono") {
+    startTeamListener();
+    startDebtsListener();
+  }
 });
 
 function applyRoleUI() {
   const isDono = currentUser.role === "dono";
   $("nav-equipe").hidden = !isDono;
+  $("nav-dividas").hidden = !isDono;
   $("fab-add-product").hidden = !isDono || currentActiveView !== "produtos";
 }
 
@@ -111,6 +116,7 @@ function switchView(view) {
   $(`view-${view}`).classList.add("active");
   document.querySelector(`.nav-btn[data-view="${view}"]`).classList.add("active");
   $("fab-add-product").hidden = !(view === "produtos" && currentUser?.role === "dono");
+  $("fab-add-debt").hidden = !(view === "dividas" && currentUser?.role === "dono");
 }
 switchView("dashboard");
 
@@ -491,3 +497,232 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
   });
 }
+// ============================================================
+// DÍVIDAS DE CLIENTES / FIADO — só o dono usa essa parte
+// ============================================================
+
+let debtsCache = [];
+let debtSearchTerm = "";
+let unsubDebts = null;
+
+function paidTotal(d) {
+  return (d.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
+}
+
+function debtRemaining(d) {
+  return (d.totalAmount || 0) - paidTotal(d);
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function debtStatus(d) {
+  const remaining = debtRemaining(d);
+  if (remaining <= 0) return "ok";
+  if (d.dueDate && d.dueDate < todayStr()) return "danger";
+  return "warn";
+}
+
+function formatCurrency(v) {
+  return (v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function formatDateBR(iso) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function startDebtsListener() {
+  unsubDebts = db.collection("debts").orderBy("customerName")
+    .onSnapshot((snap) => {
+      debtsCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderDebts();
+    });
+}
+
+function renderDebtStats() {
+  const pending = debtsCache.filter((d) => debtRemaining(d) > 0);
+  const totalToReceive = pending.reduce((sum, d) => sum + debtRemaining(d), 0);
+  const overdue = pending.filter((d) => debtStatus(d) === "danger").length;
+
+  $("stat-divida-total").textContent = formatCurrency(totalToReceive);
+  $("stat-divida-clientes").textContent = pending.length;
+  $("stat-divida-atrasadas").textContent = overdue;
+}
+
+function renderDebts() {
+  renderDebtStats();
+
+  const list = debtsCache.filter((d) =>
+    d.customerName.toLowerCase().includes(debtSearchTerm.toLowerCase())
+  );
+
+  const container = $("debts-list");
+  container.innerHTML = "";
+  $("debts-empty").hidden = list.length > 0;
+
+  list.forEach((d) => container.appendChild(debtCardEl(d)));
+}
+
+function debtCardEl(d) {
+  const status = debtStatus(d);
+  const remaining = debtRemaining(d);
+  const el = document.createElement("div");
+  el.className = "product-card";
+  el.innerHTML = `
+    <div class="product-info">
+      <div class="product-name">
+        <span class="status-dot status-${status}" style="display:inline-block;margin-right:6px;"></span>${escapeHtml(d.customerName)}
+        ${d.installments ? '<span class="badge-installment">Parcelado</span>' : ""}
+      </div>
+      <div class="product-meta">${escapeHtml(d.product || "")} · ${formatDateBR(d.date)}</div>
+    </div>
+    <div class="debt-value-col">
+      <span class="debt-value">${formatCurrency(remaining)}</span>
+      <span class="debt-value-label">${remaining <= 0 ? "quitado" : "restante"}</span>
+    </div>
+  `;
+  el.addEventListener("click", () => openDebtModal(d));
+  return el;
+}
+
+$("debt-search-input").addEventListener("input", (e) => {
+  debtSearchTerm = e.target.value;
+  renderDebts();
+});
+
+// ---------- modal de dívida ----------
+
+const debtModal = $("debt-modal");
+const debtForm = $("debt-form");
+
+$("fab-add-debt").addEventListener("click", () => openDebtModal(null));
+$("debt-modal-close").addEventListener("click", closeDebtModal);
+
+$("debt-installments").addEventListener("change", (e) => {
+  $("debt-installment-count-field").hidden = !e.target.checked;
+});
+
+function openDebtModal(debt) {
+  debtForm.reset();
+  $("debt-error").hidden = true;
+  $("debt-installment-count-field").hidden = true;
+
+  if (debt) {
+    $("debt-modal-title").textContent = "Editar dívida";
+    $("debt-id").value = debt.id;
+    $("debt-customer-name").value = debt.customerName;
+    $("debt-customer-phone").value = debt.customerPhone || "";
+    $("debt-product").value = debt.product || "";
+    $("debt-total-amount").value = debt.totalAmount;
+    $("debt-date").value = debt.date || todayStr();
+    $("debt-installments").checked = !!debt.installments;
+    $("debt-installment-count-field").hidden = !debt.installments;
+    $("debt-installment-count").value = debt.installmentCount || "";
+    $("debt-due-date").value = debt.dueDate || "";
+    $("debt-notes").value = debt.notes || "";
+    $("debt-delete-btn").hidden = false;
+    $("debt-payments-section").hidden = false;
+    renderPaymentsList(debt);
+  } else {
+    $("debt-modal-title").textContent = "Nova dívida";
+    $("debt-id").value = "";
+    $("debt-date").value = todayStr();
+    $("debt-delete-btn").hidden = true;
+    $("debt-payments-section").hidden = true;
+  }
+  debtModal.hidden = false;
+}
+
+function closeDebtModal() {
+  debtModal.hidden = true;
+}
+
+function renderPaymentsList(debt) {
+  const payments = debt.payments || [];
+  const container = $("debt-payments-list");
+  const remaining = debtRemaining(debt);
+
+  $("debt-remaining-display").textContent = `Saldo restante: ${formatCurrency(remaining)}`;
+
+  if (payments.length === 0) {
+    container.innerHTML = `<p class="empty-state" style="padding:10px 0;">Nenhum pagamento registrado ainda.</p>`;
+  } else {
+    container.innerHTML = payments
+      .slice()
+      .reverse()
+      .map((p) => `
+        <div class="payment-item">
+          <span>${formatDateBR(p.date)}</span>
+          <span>${formatCurrency(p.amount)}</span>
+        </div>
+      `).join("");
+  }
+}
+
+debtForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errorEl = $("debt-error");
+  errorEl.hidden = true;
+
+  const id = $("debt-id").value || db.collection("debts").doc().id;
+  const isInstallments = $("debt-installments").checked;
+
+  const data = {
+    customerName: $("debt-customer-name").value.trim(),
+    customerPhone: $("debt-customer-phone").value.trim(),
+    product: $("debt-product").value.trim(),
+    totalAmount: parseFloat($("debt-total-amount").value),
+    date: $("debt-date").value,
+    installments: isInstallments,
+    installmentCount: isInstallments ? (parseInt($("debt-installment-count").value, 10) || null) : null,
+    dueDate: $("debt-due-date").value || null,
+    notes: $("debt-notes").value.trim(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: currentUser.name,
+  };
+
+  try {
+    const isNew = !$("debt-id").value;
+    if (isNew) data.payments = [];
+    await db.collection("debts").doc(id).set(data, { merge: true });
+    closeDebtModal();
+    showToast(isNew ? "Dívida registrada!" : "Dívida atualizada!");
+  } catch (err) {
+    errorEl.textContent = "Não deu pra salvar. Tente de novo.";
+    errorEl.hidden = false;
+  }
+});
+
+$("debt-delete-btn").addEventListener("click", async () => {
+  const id = $("debt-id").value;
+  const name = $("debt-customer-name").value;
+  if (!confirm(`Excluir a dívida de "${name}"? Essa ação não pode ser desfeita.`)) return;
+  await db.collection("debts").doc(id).delete();
+  closeDebtModal();
+  showToast("Dívida excluída.");
+});
+
+$("debt-add-payment-btn").addEventListener("click", async () => {
+  const id = $("debt-id").value;
+  if (!id) return;
+  const amount = parseFloat($("debt-payment-amount").value);
+  const date = $("debt-payment-date").value || todayStr();
+  if (!amount || amount <= 0) {
+    showToast("Coloca um valor válido pro pagamento.");
+    return;
+  }
+  const debt = debtsCache.find((d) => d.id === id);
+  const updatedPayments = [...(debt.payments || []), { amount, date }];
+
+  await db.collection("debts").doc(id).update({
+    payments: updatedPayments,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: currentUser.name,
+  });
+
+  $("debt-payment-amount").value = "";
+  showToast("Pagamento registrado!");
+});
