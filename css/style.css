@@ -186,6 +186,7 @@ button, input { font-family: inherit; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  margin-bottom: 18px;
 }
 .stat-card {
   background: var(--bg-elevated);
