@@ -1,8 +1,11 @@
-// Cache simples do "esqueleto" do app, pra ele abrir rápido
-// (e mostrar algo) mesmo com internet ruim. Os dados (produtos,
-// estoque, login) sempre vêm direto do Firebase — nunca do cache.
 
-const CACHE_NAME = "leao-de-juda-v1";
+// Cache do "esqueleto" do app. Estratégia: sempre tenta buscar a
+// versão mais nova pela internet primeiro; só usa a cópia salva
+// se estiver sem sinal. Isso evita ficar preso numa versão antiga
+// depois de cada atualização. Os dados (produtos, estoque, dívidas,
+// login) sempre vêm direto do Firebase — nunca do cache.
+
+const CACHE_NAME = "leao-de-juda-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -36,6 +39,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
