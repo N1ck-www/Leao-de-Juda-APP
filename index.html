@@ -336,6 +336,20 @@
   </div>
 </div>
 
+<!-- ====================== MODAL DE CONFIRMAÇÃO ====================== -->
+<div id="confirm-modal" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Confirmar</h3>
+    </div>
+    <p id="confirm-message" style="color:var(--text-muted); margin:0 0 20px; font-size:14.5px;"></p>
+    <div class="modal-actions">
+      <button type="button" id="confirm-cancel-btn" class="btn" style="background:var(--bg-elevated-2); color:var(--text);">Cancelar</button>
+      <button type="button" id="confirm-ok-btn" class="btn btn-danger">Excluir</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast" hidden></div>
 
 <!-- Firebase (compat, sem necessidade de bundler) -->
