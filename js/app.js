@@ -504,20 +504,27 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
   });
 }
-// ============================================================
+    // ============================================================
 // DÍVIDAS DE CLIENTES / FIADO — só o dono usa essa parte
+// Cada cliente tem uma "conta corrente": itens fiado (charges)
+// somam, pagamentos (payments) subtraem. O saldo é sempre a
+// diferença entre os dois.
 // ============================================================
 
 let debtsCache = [];
 let debtSearchTerm = "";
 let unsubDebts = null;
 
+function chargesTotal(d) {
+  return (d.charges || []).reduce((sum, c) => sum + (c.amount || 0), 0);
+}
+
 function paidTotal(d) {
   return (d.payments || []).reduce((sum, p) => sum + (p.amount || 0), 0);
 }
 
 function debtRemaining(d) {
-  return (d.totalAmount || 0) - paidTotal(d);
+  return chargesTotal(d) - paidTotal(d);
 }
 
 function todayStr() {
@@ -539,6 +546,14 @@ function formatDateBR(iso) {
   if (!iso) return "";
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
+}
+
+function lastActivityDate(d) {
+  const dates = [
+    ...(d.charges || []).map((c) => c.date),
+    ...(d.payments || []).map((p) => p.date),
+  ].filter(Boolean);
+  return dates.sort().slice(-1)[0] || "";
 }
 
 function startDebtsListener() {
@@ -576,6 +591,7 @@ function renderDebts() {
 function debtCardEl(d) {
   const status = debtStatus(d);
   const remaining = debtRemaining(d);
+  const itemCount = (d.charges || []).length;
   const el = document.createElement("div");
   el.className = "product-card";
   el.innerHTML = `
@@ -584,7 +600,7 @@ function debtCardEl(d) {
         <span class="status-dot status-${status}" style="display:inline-block;margin-right:6px;"></span>${escapeHtml(d.customerName)}
         ${d.installments ? '<span class="badge-installment">Parcelado</span>' : ""}
       </div>
-      <div class="product-meta">${escapeHtml(d.product || "")} · ${formatDateBR(d.date)}</div>
+      <div class="product-meta">${itemCount} ${itemCount === 1 ? "item" : "itens"} fiado · ${formatDateBR(lastActivityDate(d))}</div>
     </div>
     <div class="debt-value-col">
       <span class="debt-value">${formatCurrency(remaining)}</span>
@@ -622,23 +638,24 @@ function openDebtModal(debt) {
     $("debt-id").value = debt.id;
     $("debt-customer-name").value = debt.customerName;
     $("debt-customer-phone").value = debt.customerPhone || "";
-    $("debt-product").value = debt.product || "";
-    $("debt-total-amount").value = debt.totalAmount;
-    $("debt-date").value = debt.date || todayStr();
     $("debt-installments").checked = !!debt.installments;
     $("debt-installment-count-field").hidden = !debt.installments;
     $("debt-installment-count").value = debt.installmentCount || "";
     $("debt-due-date").value = debt.dueDate || "";
     $("debt-notes").value = debt.notes || "";
     $("debt-delete-btn").hidden = false;
-    $("debt-payments-section").hidden = false;
-    renderPaymentsList(debt);
+    $("debt-initial-charge-fields").hidden = true;
+    $("debt-ledger-section").hidden = false;
+    $("debt-charge-date").value = todayStr();
+    $("debt-payment-date").value = todayStr();
+    refreshDebtLedgerUI(debt);
   } else {
     $("debt-modal-title").textContent = "Nova dívida";
     $("debt-id").value = "";
     $("debt-date").value = todayStr();
     $("debt-delete-btn").hidden = true;
-    $("debt-payments-section").hidden = true;
+    $("debt-initial-charge-fields").hidden = false;
+    $("debt-ledger-section").hidden = true;
   }
   debtModal.hidden = false;
 }
@@ -647,25 +664,39 @@ function closeDebtModal() {
   debtModal.hidden = true;
 }
 
+function refreshDebtLedgerUI(debt) {
+  $("debt-remaining-display").textContent = `Saldo restante: ${formatCurrency(debtRemaining(debt))}`;
+  renderChargesList(debt);
+  renderPaymentsList(debt);
+}
+
+function renderChargesList(debt) {
+  const charges = debt.charges || [];
+  const container = $("debt-charges-list");
+  if (charges.length === 0) {
+    container.innerHTML = `<p class="empty-state" style="padding:10px 0;">Nenhum item ainda.</p>`;
+  } else {
+    container.innerHTML = charges.slice().reverse().map((c) => `
+      <div class="payment-item">
+        <span>${formatDateBR(c.date)} · ${escapeHtml(c.product || "Item")}</span>
+        <span>${formatCurrency(c.amount)}</span>
+      </div>
+    `).join("");
+  }
+}
+
 function renderPaymentsList(debt) {
   const payments = debt.payments || [];
   const container = $("debt-payments-list");
-  const remaining = debtRemaining(debt);
-
-  $("debt-remaining-display").textContent = `Saldo restante: ${formatCurrency(remaining)}`;
-
   if (payments.length === 0) {
-    container.innerHTML = `<p class="empty-state" style="padding:10px 0;">Nenhum pagamento registrado ainda.</p>`;
+    container.innerHTML = `<p class="empty-state" style="padding:10px 0;">Nenhum pagamento ainda.</p>`;
   } else {
-    container.innerHTML = payments
-      .slice()
-      .reverse()
-      .map((p) => `
-        <div class="payment-item">
-          <span>${formatDateBR(p.date)}</span>
-          <span>${formatCurrency(p.amount)}</span>
-        </div>
-      `).join("");
+    container.innerHTML = payments.slice().reverse().map((p) => `
+      <div class="payment-item">
+        <span>${formatDateBR(p.date)}</span>
+        <span>${formatCurrency(p.amount)}</span>
+      </div>
+    `).join("");
   }
 }
 
@@ -674,15 +705,13 @@ debtForm.addEventListener("submit", async (e) => {
   const errorEl = $("debt-error");
   errorEl.hidden = true;
 
+  const isNew = !$("debt-id").value;
   const id = $("debt-id").value || db.collection("debts").doc().id;
   const isInstallments = $("debt-installments").checked;
 
   const data = {
     customerName: $("debt-customer-name").value.trim(),
     customerPhone: $("debt-customer-phone").value.trim(),
-    product: $("debt-product").value.trim(),
-    totalAmount: parseFloat($("debt-total-amount").value),
-    date: $("debt-date").value,
     installments: isInstallments,
     installmentCount: isInstallments ? (parseInt($("debt-installment-count").value, 10) || null) : null,
     dueDate: $("debt-due-date").value || null,
@@ -691,9 +720,19 @@ debtForm.addEventListener("submit", async (e) => {
     updatedBy: currentUser.name,
   };
 
+  if (isNew) {
+    const amount = parseFloat($("debt-total-amount").value);
+    const date = $("debt-date").value;
+    if (!amount || amount <= 0 || !date) {
+      errorEl.textContent = "Preenche o valor e a data do item fiado.";
+      errorEl.hidden = false;
+      return;
+    }
+    data.charges = [{ product: $("debt-product").value.trim(), amount, date }];
+    data.payments = [];
+  }
+
   try {
-    const isNew = !$("debt-id").value;
-    if (isNew) data.payments = [];
     await db.collection("debts").doc(id).set(data, { merge: true });
     closeDebtModal();
     showToast(isNew ? "Dívida registrada!" : "Dívida atualizada!");
@@ -710,6 +749,32 @@ $("debt-delete-btn").addEventListener("click", async () => {
   await db.collection("debts").doc(id).delete();
   closeDebtModal();
   showToast("Dívida excluída.");
+});
+
+$("debt-add-charge-btn").addEventListener("click", async () => {
+  const id = $("debt-id").value;
+  if (!id) return;
+  const product = $("debt-charge-product").value.trim();
+  const amount = parseFloat($("debt-charge-amount").value);
+  const date = $("debt-charge-date").value || todayStr();
+  if (!amount || amount <= 0) {
+    showToast("Coloca um valor válido pro item.");
+    return;
+  }
+  const debt = debtsCache.find((d) => d.id === id);
+  const updatedCharges = [...(debt.charges || []), { product, amount, date }];
+
+  await db.collection("debts").doc(id).update({
+    charges: updatedCharges,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: currentUser.name,
+  });
+
+  debt.charges = updatedCharges;
+  refreshDebtLedgerUI(debt);
+  $("debt-charge-product").value = "";
+  $("debt-charge-amount").value = "";
+  showToast("Item adicionado!");
 });
 
 $("debt-add-payment-btn").addEventListener("click", async () => {
@@ -730,6 +795,8 @@ $("debt-add-payment-btn").addEventListener("click", async () => {
     updatedBy: currentUser.name,
   });
 
+  debt.payments = updatedPayments;
+  refreshDebtLedgerUI(debt);
   $("debt-payment-amount").value = "";
   showToast("Pagamento registrado!");
 });
