@@ -504,7 +504,8 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
   });
 }
-    // ============================================================
+
+// ============================================================
 // DÍVIDAS DE CLIENTES / FIADO — só o dono usa essa parte
 // Cada cliente tem uma "conta corrente": itens fiado (charges)
 // somam, pagamentos (payments) subtraem. O saldo é sempre a
