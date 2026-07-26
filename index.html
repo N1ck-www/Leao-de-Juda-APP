@@ -253,19 +253,22 @@
         <span>Telefone (opcional)</span>
         <input type="tel" id="debt-customer-phone" placeholder="(00) 00000-0000">
       </label>
-      <label class="field">
-        <span>Produto</span>
-        <input type="text" id="debt-product">
-      </label>
-      <div class="field-row">
+
+      <div id="debt-initial-charge-fields">
         <label class="field">
-          <span>Valor total</span>
-          <input type="number" id="debt-total-amount" min="0" step="0.01" required>
+          <span>Produto</span>
+          <input type="text" id="debt-product">
         </label>
-        <label class="field">
-          <span>Data</span>
-          <input type="date" id="debt-date" required>
-        </label>
+        <div class="field-row">
+          <label class="field">
+            <span>Valor</span>
+            <input type="number" id="debt-total-amount" min="0" step="0.01">
+          </label>
+          <label class="field">
+            <span>Data</span>
+            <input type="date" id="debt-date">
+          </label>
+        </div>
       </div>
 
       <label class="field" style="display:flex; align-items:center; gap:8px; flex-direction:row;">
@@ -289,11 +292,29 @@
 
       <p id="debt-error" class="error-text" hidden></p>
 
-      <div id="debt-payments-section" hidden>
-        <h3 class="section-subtitle">Pagamentos</h3>
-        <p id="debt-remaining-display" style="font-weight:700; margin:0 0 10px;"></p>
-        <div id="debt-payments-list"></div>
+      <div id="debt-ledger-section" hidden>
+        <p id="debt-remaining-display" style="font-weight:700; margin:16px 0 10px;"></p>
 
+        <h3 class="section-subtitle">Itens fiado</h3>
+        <div id="debt-charges-list"></div>
+        <div class="field-row" style="margin-top:10px;">
+          <label class="field">
+            <span>Produto</span>
+            <input type="text" id="debt-charge-product">
+          </label>
+          <label class="field">
+            <span>Valor</span>
+            <input type="number" id="debt-charge-amount" min="0" step="0.01">
+          </label>
+        </div>
+        <label class="field">
+          <span>Data</span>
+          <input type="date" id="debt-charge-date">
+        </label>
+        <button type="button" id="debt-add-charge-btn" class="btn btn-primary btn-block">Adicionar item fiado</button>
+
+        <h3 class="section-subtitle">Pagamentos</h3>
+        <div id="debt-payments-list"></div>
         <div class="field-row" style="margin-top:10px;">
           <label class="field">
             <span>Valor do pagamento</span>
