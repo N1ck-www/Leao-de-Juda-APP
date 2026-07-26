@@ -356,7 +356,8 @@ productForm.addEventListener("submit", async (e) => {
 $("product-delete-btn").addEventListener("click", async () => {
   const id = $("product-id").value;
   const name = $("product-name").value;
-  if (!confirm(`Excluir "${name}"? Essa ação não pode ser desfeita.`)) return;
+  const ok = await confirmDialog(`Excluir "${name}"? Essa ação não pode ser desfeita.`);
+  if (!ok) return;
   await db.collection("products").doc(id).delete();
   await logHistory({ productName: name, action: "Excluiu o produto", detail: "" });
   closeProductModal();
@@ -496,6 +497,26 @@ function showToast(msg) {
 function hideLoadingScreen() {
   const el = $("loading-screen");
   if (el && !el.hidden) el.hidden = true;
+}
+
+function confirmDialog(message, confirmLabel = "Excluir") {
+  return new Promise((resolve) => {
+    $("confirm-message").textContent = message;
+    $("confirm-ok-btn").textContent = confirmLabel;
+    $("confirm-modal").hidden = false;
+
+    function cleanup(result) {
+      $("confirm-modal").hidden = true;
+      $("confirm-ok-btn").removeEventListener("click", onOk);
+      $("confirm-cancel-btn").removeEventListener("click", onCancel);
+      resolve(result);
+    }
+    function onOk() { cleanup(true); }
+    function onCancel() { cleanup(false); }
+
+    $("confirm-ok-btn").addEventListener("click", onOk);
+    $("confirm-cancel-btn").addEventListener("click", onCancel);
+  });
 }
 
 // registra o service worker (deixa o app instalável / funcionando offline)
@@ -746,7 +767,8 @@ debtForm.addEventListener("submit", async (e) => {
 $("debt-delete-btn").addEventListener("click", async () => {
   const id = $("debt-id").value;
   const name = $("debt-customer-name").value;
-  if (!confirm(`Excluir a dívida de "${name}"? Essa ação não pode ser desfeita.`)) return;
+  const ok = await confirmDialog(`Excluir a dívida de "${name}"? Essa ação não pode ser desfeita.`);
+  if (!ok) return;
   await db.collection("debts").doc(id).delete();
   closeDebtModal();
   showToast("Dívida excluída.");
