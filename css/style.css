@@ -566,3 +566,20 @@ button, input { font-family: inherit; }
     transition: none;
   }
 }
+/* ---------------- BOTÃO DE COBRANÇA (WHATSAPP) ---------------- */
+.whatsapp-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: #25D366;
+  color: #fff;
+  font-size: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+  margin-right: 4px;
+}
+.whatsapp-btn:active {
+  transform: scale(0.9);
+}
