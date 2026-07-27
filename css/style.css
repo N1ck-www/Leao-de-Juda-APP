@@ -579,6 +579,9 @@ button, input { font-family: inherit; }
   cursor: pointer;
   transition: transform 0.12s ease;
   margin-right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .whatsapp-btn:active {
   transform: scale(0.9);
