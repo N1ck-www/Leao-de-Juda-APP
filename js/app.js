@@ -610,10 +610,50 @@ function renderDebts() {
   list.forEach((d) => container.appendChild(debtCardEl(d)));
 }
 
+function formatPhoneForWhatsapp(phone) {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (!digits) return null;
+  return digits.length <= 11 ? "55" + digits : digits;
+}
+
+function buildChargeMessage(d) {
+  const remaining = debtRemaining(d);
+  const charges = d.charges || [];
+  const itemsText = charges
+    .map((c) => `- ${formatDateBR(c.date)}: ${c.product || "Item"} — ${formatCurrency(c.amount)}`)
+    .join("\n");
+
+  let msg = `Olá, ${d.customerName}! Aqui é da *Leão de Judá Eletrônicos* 🦁\n\n`;
+  msg += `Passando pra lembrar do seu fiado:\n\n`;
+  msg += `📦 *Itens:*\n${itemsText}\n\n`;
+  msg += `💰 *Total das compras:* ${formatCurrency(chargesTotal(d))}\n`;
+  msg += `✅ *Já pago:* ${formatCurrency(paidTotal(d))}\n`;
+  msg += `📌 *Saldo restante:* ${formatCurrency(remaining)}\n`;
+
+  if (d.dueDate) {
+    const overdue = d.dueDate < todayStr();
+    msg += `\n📅 ${overdue ? "O pagamento estava previsto para" : "Combinamos o pagamento até"} *${formatDateBR(d.dueDate)}*.\n`;
+  }
+
+  msg += `\nQualquer dúvida, só chamar! Obrigado pela confiança 🙏`;
+  return msg;
+}
+
+function chargeViaWhatsapp(d) {
+  const phone = formatPhoneForWhatsapp(d.customerPhone);
+  if (!phone) {
+    showToast("Esse cliente não tem telefone cadastrado.");
+    return;
+  }
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(buildChargeMessage(d))}`;
+  window.open(url, "_blank");
+}
+
 function debtCardEl(d) {
   const status = debtStatus(d);
   const remaining = debtRemaining(d);
   const itemCount = (d.charges || []).length;
+  const canCharge = d.customerPhone && remaining > 0;
   const el = document.createElement("div");
   el.className = "product-card";
   el.innerHTML = `
@@ -628,7 +668,14 @@ function debtCardEl(d) {
       <span class="debt-value">${formatCurrency(remaining)}</span>
       <span class="debt-value-label">${remaining <= 0 ? "quitado" : "restante"}</span>
     </div>
+    ${canCharge ? `<button class="whatsapp-btn" data-action="charge" title="Cobrar via WhatsApp">💬</button>` : ""}
   `;
+  if (canCharge) {
+    el.querySelector('[data-action="charge"]').addEventListener("click", (e) => {
+      e.stopPropagation();
+      chargeViaWhatsapp(d);
+    });
+  }
   el.addEventListener("click", () => openDebtModal(d));
   return el;
 }
