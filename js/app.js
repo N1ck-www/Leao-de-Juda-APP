@@ -697,6 +697,77 @@ $("debt-installments").addEventListener("change", (e) => {
   $("debt-installment-count-field").hidden = !e.target.checked;
 });
 
+$("scan-receipt-btn").addEventListener("click", () => $("receipt-photo-input").click());
+
+$("receipt-photo-input").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const statusEl = $("scan-status");
+  statusEl.hidden = false;
+  statusEl.className = "success-text";
+  statusEl.textContent = "Lendo notinha...";
+
+  try {
+    const imageDataUrl = await compressImage(file, 1024, 0.85);
+    const base64 = imageDataUrl.split(",")[1];
+
+    const prompt = `Você vai analisar a foto de uma notinha de venda fiado (compra a prazo), escrita à mão em português, de uma loja de eletrônicos.
+
+Extraia estas informações e responda APENAS com um JSON válido, sem nenhum texto antes ou depois, no formato exato:
+
+{
+  "customerName": "nome do cliente, sem títulos como 'funcionário'",
+  "product": "descrição do(s) produto(s), resumida",
+  "amount": valor numérico total (use ponto decimal, sem R$, sem vírgula),
+  "date": "AAAA-MM-DD",
+  "dueDate": "AAAA-MM-DD ou null se não houver data prevista de pagamento"
+}
+
+Regras importantes:
+- Se houver valor circulado, corrigido ou reescrito por cima, use o valor final/mais recente, não o riscado.
+- Se a data estiver no formato DD/MM/AA, converta pro formato AAAA-MM-DD (assuma 20AA para o ano).
+- Se não conseguir identificar um campo com confiança, use null nesse campo.
+- Nunca invente informação que não está na notinha.`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: "image/jpeg", data: base64 } },
+            ],
+          }],
+        }),
+      }
+    );
+
+    if (!response.ok) throw new Error("Falha na requisição");
+
+    const result = await response.json();
+    let text = result.candidates[0].content.parts[0].text.trim();
+    text = text.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+    const data = JSON.parse(text);
+
+    if (data.customerName) $("debt-customer-name").value = data.customerName;
+    if (data.product) $("debt-product").value = data.product;
+    if (data.amount) $("debt-total-amount").value = data.amount;
+    if (data.date) $("debt-date").value = data.date;
+    if (data.dueDate) $("debt-due-date").value = data.dueDate;
+
+    statusEl.textContent = "Notinha lida! Confere os dados antes de salvar.";
+  } catch (err) {
+    statusEl.className = "error-text";
+    statusEl.textContent = "Não consegui ler essa notinha. Preenche manualmente.";
+  } finally {
+    $("receipt-photo-input").value = "";
+  }
+});
+
 function openDebtModal(debt) {
   debtForm.reset();
   $("debt-error").hidden = true;
