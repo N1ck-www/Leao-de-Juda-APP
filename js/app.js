@@ -731,7 +731,7 @@ Regras importantes:
 - Nunca invente informação que não está na notinha.`;
 
     // Em vez de chamar o Google diretamente, chama o seu Worker
-const response = await fetch("https://leao-juda-gemini.SEU-USUARIO.workers.dev", {
+const response = await fetch("https://lj-ia.nicolaskaka33.workers.dev", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
