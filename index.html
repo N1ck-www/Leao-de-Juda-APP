@@ -269,11 +269,15 @@
       </label>
 
       <div id="debt-initial-charge-fields">
-        <button type="button" id="scan-receipt-btn" class="btn btn-block" style="background:var(--bg-elevated-2); color:var(--accent-strong); margin-bottom:14px; display:flex; align-items:center; justify-content:center; gap:8px;">
-          📷 Ler notinha com IA
-        </button>
-        <input type="file" id="receipt-photo-input" accept="image/*" capture="environment" hidden>
-        <p id="scan-status" class="success-text" hidden></p>
+        <!-- IA temporariamente desativada
+<button type="button" id="scan-receipt-btn" class="btn btn-block" style="background:var(--bg-elevated-2); color:var(--accent-strong); margin-bottom:14px; display:flex; align-items:center; justify-content:center; gap:8px;">
+  📷 Ler notinha com IA
+</button>
+<input type="file" id="receipt-photo-input" accept="image/*" capture="environment" hidden>
+-->
+<p id="scan-status" class="error-text" style="margin-bottom:14px;">
+  📷 Leitura de notinha com IA temporariamente desativada. Preencha manualmente.
+</p>
 
         <label class="field">
           <span>Produto</span>
