@@ -149,7 +149,8 @@ function escapeHtml(str) {
 
 function renderProducts() {
   let list = productsCache.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.barcode || "").includes(searchTerm.trim())
   );
   if (activeFilter === "baixo") list = list.filter((p) => productStatus(p) === "warn");
   if (activeFilter === "falta") list = list.filter((p) => productStatus(p) === "danger");
@@ -173,8 +174,7 @@ function productCardEl(p) {
       <div class="product-name">
         <span class="status-dot status-${status}" style="display:inline-block;margin-right:6px;"></span>${escapeHtml(p.name)}
       </div>
-      <div class="product-meta">${escapeHtml(p.category || "Sem categoria")}</div>
-    </div>
+      <div class="product-meta">${escapeHtml(p.category || "Sem categoria")}${p.barcode ? ` · #${escapeHtml(p.barcode)}` : ""}</div>
     <div class="qty-control">
       <button class="qty-btn" data-action="dec">−</button>
       <span class="qty-value">${p.quantity}</span>
@@ -281,8 +281,11 @@ function openProductModal(product) {
     $("product-id").value = product.id;
     $("product-name").value = product.name;
     $("product-category").value = product.category || "";
+    $("product-barcode").value = product.barcode || "";
     $("product-quantity").value = product.quantity;
     $("product-minstock").value = product.minStock ?? 3;
+    $("product-price").value = product.price ?? "";
+    $("product-cost").value = product.cost ?? "";
     $("product-delete-btn").hidden = false;
     if (product.image) {
       $("image-preview").src = product.image;
@@ -322,11 +325,25 @@ productForm.addEventListener("submit", async (e) => {
   errorEl.hidden = true;
 
   const id = $("product-id").value || db.collection("products").doc().id;
+  const barcode = $("product-barcode").value.trim();
+
+  if (barcode) {
+    const duplicate = productsCache.find((p) => p.barcode === barcode && p.id !== id);
+    if (duplicate) {
+      errorEl.textContent = `Esse código de barras já tá cadastrado em "${duplicate.name}".`;
+      errorEl.hidden = false;
+      return;
+    }
+  }
+
   const data = {
     name: $("product-name").value.trim(),
     category: $("product-category").value.trim(),
+    barcode: barcode || null,
     quantity: parseInt($("product-quantity").value, 10),
     minStock: parseInt($("product-minstock").value, 10),
+    price: $("product-price").value ? parseFloat($("product-price").value) : null,
+    cost: $("product-cost").value ? parseFloat($("product-cost").value) : null,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     updatedBy: currentUser.name,
   };
