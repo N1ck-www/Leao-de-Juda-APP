@@ -730,28 +730,23 @@ Regras importantes:
 - Se não conseguir identificar um campo com confiança, use null nesse campo.
 - Nunca invente informação que não está na notinha.`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: prompt },
-              { inline_data: { mime_type: "image/jpeg", data: base64 } },
-            ],
-          }],
-        }),
-      }
-    );
+    // Em vez de chamar o Google diretamente, chama o seu Worker
+const response = await fetch("https://leao-juda-gemini.SEU-USUARIO.workers.dev", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    imageBase64: base64,
+    prompt: prompt,
+  }),
+});
 
-    if (!response.ok) throw new Error("Falha na requisição");
+if (!response.ok) throw new Error("Falha na requisição");
 
-    const result = await response.json();
-    let text = result.candidates[0].content.parts[0].text.trim();
-    text = text.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
-    const data = JSON.parse(text);
+const result = await response.json();
+
+let text = result.candidates[0].content.parts[0].text.trim();
+text = text.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+const data = JSON.parse(text);
 
     if (data.customerName) $("debt-customer-name").value = data.customerName;
     if (data.product) $("debt-product").value = data.product;
