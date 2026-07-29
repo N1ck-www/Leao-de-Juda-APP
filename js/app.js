@@ -706,7 +706,7 @@ $("receipt-photo-input").addEventListener("change", async (e) => {
   const statusEl = $("scan-status");
   statusEl.hidden = false;
   statusEl.className = "success-text";
-  statusEl.textContent = "Lendo notinha...";
+  statusEl.textContent = "Lendo notinha..."
 
   try {
     const imageDataUrl = await compressImage(file, 1024, 0.85);
@@ -730,23 +730,29 @@ Regras importantes:
 - Se não conseguir identificar um campo com confiança, use null nesse campo.
 - Nunca invente informação que não está na notinha.`;
 
-    // Em vez de chamar o Google diretamente, chama o seu Worker
-const response = await fetch("https://lj-ia.nicolaskaka33.workers.dev", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    imageBase64: base64,
-    prompt: prompt,
-  }),
-});
+    const response = await fetch("https://lj-ia.nicolaskaka33.workers.dev", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        imageBase64: base64,
+        prompt: prompt,
+      }),
+    });
 
-if (!response.ok) throw new Error("Falha na requisição");
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error("Erro do Worker: " + errText);
+    }
 
-const result = await response.json();
+    const result = await response.json();
 
-let text = result.candidates[0].content.parts[0].text.trim();
-text = text.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
-const data = JSON.parse(text);
+    if (result.error) {
+      throw new Error("Erro Gemini: " + JSON.stringify(result.error));
+    }
+
+    let text = result.candidates[0].content.parts[0].text.trim();
+    text = text.replace(/^```json\s*/i, "").replace(/```$/g, "").trim();
+    const data = JSON.parse(text);
 
     if (data.customerName) $("debt-customer-name").value = data.customerName;
     if (data.product) $("debt-product").value = data.product;
@@ -756,8 +762,9 @@ const data = JSON.parse(text);
 
     statusEl.textContent = "Notinha lida! Confere os dados antes de salvar.";
   } catch (err) {
+    console.error("Erro ao ler notinha:", err);
     statusEl.className = "error-text";
-    statusEl.textContent = "Não consegui ler essa notinha. Preenche manualmente.";
+    statusEl.textContent = "Erro: " + (err.message || "Não consegui ler a notinha");
   } finally {
     $("receipt-photo-input").value = "";
   }
