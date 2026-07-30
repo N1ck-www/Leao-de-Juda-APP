@@ -211,9 +211,10 @@ function productCardEl(p) {
       : `<div class="product-thumb placeholder">📦</div>`}
     <div class="product-info">
       <div class="product-name">
-        <span class="status-dot status-${status}" style="display:inline-block;margin-right:6px;"></span>${escapeHtml(p.name)}
+        <span class="status-dot status-\( {status}" style="display:inline-block;margin-right:6px;"></span> \){escapeHtml(p.name)}
       </div>
-      <div class="product-meta">${escapeHtml(p.category || "Sem categoria")}${p.barcode ? ` · #${escapeHtml(p.barcode)}` : ""}</div>
+      <div class="product-meta">\( {escapeHtml(p.category || "Sem categoria")} \){p.barcode ? ` · #${escapeHtml(p.barcode)}` : ""}</div>
+    </div>
     <div class="qty-control">
       <button class="qty-btn" data-action="dec">−</button>
       <span class="qty-value">${p.quantity}</span>
