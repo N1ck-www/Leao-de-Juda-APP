@@ -120,12 +120,51 @@ function switchView(view) {
   $("fab-add-product").hidden = !(view === "produtos" && currentUser?.role === "dono");
   $("fab-add-debt").hidden = !(view === "dividas" && currentUser?.role === "dono");
 }
+
 switchView("dashboard");
+
+// ============================================================
+// LEITOR DE CÓDIGO DE BARRAS (câmera)
+// Reutilizável — qualquer tela pode chamar openBarcodeScanner(fn)
+// e receber o código lido em fn(codigo).
+// ============================================================
+
+let html5QrCodeInstance = null;
+let scannerResolveCallback = null;
+
+function openBarcodeScanner(onResult) {
+  scannerResolveCallback = onResult;
+  $("scanner-modal").hidden = false;
+
+  html5QrCodeInstance = new Html5Qrcode("scanner-viewport");
+  html5QrCodeInstance.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: { width: 250, height: 150 } },
+    (decodedText) => {
+      closeBarcodeScanner();
+      if (scannerResolveCallback) scannerResolveCallback(decodedText);
+    },
+    () => {} // dispara continuamente enquanto não acha nada — ignorar
+  ).catch(() => {
+    showToast("Não consegui acessar a câmera. Confere a permissão do navegador.");
+    closeBarcodeScanner();
+  });
+}
+
+function closeBarcodeScanner() {
+  if (html5QrCodeInstance) {
+    html5QrCodeInstance.stop().then(() => html5QrCodeInstance.clear()).catch(() => {});
+    html5QrCodeInstance = null;
+  }
+  $("scanner-modal").hidden = true;
+}
+
+$("scanner-close-btn").addEventListener("click", closeBarcodeScanner);
+$("scanner-cancel-btn").addEventListener("click", closeBarcodeScanner);
 
 // ============================================================
 // PRODUTOS
 // ============================================================
-
 function startProductsListener() {
   unsubProducts = db.collection("products").orderBy("name")
     .onSnapshot((snap) => {
@@ -306,6 +345,21 @@ function closeProductModal() {
 }
 
 $("image-upload-area").addEventListener("click", () => $("product-image").click());
+
+$("scan-barcode-btn").addEventListener("click", () => {
+  openBarcodeScanner((code) => {
+    $("product-barcode").value = code;
+    const duplicate = productsCache.find((p) => p.barcode === code && p.id !== $("product-id").value);
+    showToast(duplicate ? `Atenção: esse código já é do produto "${duplicate.name}".` : "Código lido!");
+  });
+});
+
+// leitor USB (funciona como teclado) — impede que o "Enter" dele
+// envie o formulário sem querer antes de terminar de preencher
+$("product-barcode").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") e.preventDefault();
+});
+
 $("product-image").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
