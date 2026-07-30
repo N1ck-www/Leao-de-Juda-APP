@@ -431,9 +431,145 @@ $("product-delete-btn").addEventListener("click", async () => {
   const ok = await confirmDialog(`Excluir "${name}"? Essa ação não pode ser desfeita.`);
   if (!ok) return;
   await db.collection("products").doc(id).delete();
-  await logHistory({ productName: name, action: "Excluiu o produto", detail: "" });
+await logHistory({ productName: name, action: "Excluiu o produto", detail: "" });
   closeProductModal();
   showToast("Produto excluído.");
+});
+
+// ============================================================
+// VENDAS (carrinho) — usado por dono e funcionário
+// ============================================================
+
+let cart = [];
+
+function addToCart(product, qty = 1) {
+  if (!product.price) {
+    showToast(`"${product.name}" não tem preço de venda cadastrado.`);
+    return;
+  }
+  const existing = cart.find((item) => item.productId === product.id);
+  const currentQtyInCart = existing ? existing.qty : 0;
+  if (currentQtyInCart + qty > product.quantity) {
+    showToast(`Só tem ${product.quantity} de "${product.name}" no estoque.`);
+    return;
+  }
+  if (existing) {
+    existing.qty += qty;
+  } else {
+    cart.push({ productId: product.id, name: product.name, unitPrice: product.price, qty });
+  }
+  renderCart();
+  showToast(`"${product.name}" adicionado!`);
+}
+
+function changeCartQty(productId, delta) {
+  const item = cart.find((i) => i.productId === productId);
+  if (!item) return;
+  const product = productsCache.find((p) => p.id === productId);
+  const newQty = item.qty + delta;
+  if (newQty <= 0) {
+    removeFromCart(productId);
+    return;
+  }
+  if (product && newQty > product.quantity) {
+    showToast(`Só tem ${product.quantity} no estoque.`);
+    return;
+  }
+  item.qty = newQty;
+  renderCart();
+}
+
+function removeFromCart(productId) {
+  cart = cart.filter((i) => i.productId !== productId);
+  renderCart();
+}
+
+function cartItemEl(item) {
+  const el = document.createElement("div");
+  el.className = "product-card";
+  el.innerHTML = `
+    <div class="product-info">
+      <div class="product-name">${escapeHtml(item.name)}</div>
+      <div class="product-meta">${formatCurrency(item.unitPrice)} cada</div>
+    </div>
+    <div class="qty-control">
+      <button class="qty-btn" data-action="dec">−</button>
+      <span class="qty-value">${item.qty}</span>
+      <button class="qty-btn" data-action="inc">+</button>
+    </div>
+    <button class="icon-btn" data-action="remove" style="margin-left:8px;">🗑</button>
+  `;
+  el.querySelector('[data-action="inc"]').addEventListener("click", () => changeCartQty(item.productId, 1));
+  el.querySelector('[data-action="dec"]').addEventListener("click", () => changeCartQty(item.productId, -1));
+  el.querySelector('[data-action="remove"]').addEventListener("click", () => removeFromCart(item.productId));
+  return el;
+}
+
+function renderCart() {
+  const container = $("cart-list");
+  container.innerHTML = "";
+  $("cart-empty").hidden = cart.length > 0;
+  cart.forEach((item) => container.appendChild(cartItemEl(item)));
+  updateSaleTotal();
+}
+
+function updateSaleTotal() {
+  const subtotal = cart.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
+  const discount = parseFloat($("sale-discount").value) || 0;
+  const total = Math.max(0, subtotal - discount);
+  $("sale-total").textContent = formatCurrency(total);
+}
+
+$("sale-discount").addEventListener("input", updateSaleTotal);
+
+document.querySelectorAll("[data-add-mode]").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll("[data-add-mode]").forEach((c) => c.classList.remove("active"));
+    chip.classList.add("active");
+    const mode = chip.dataset.addMode;
+    $("sale-search-row").hidden = mode !== "search";
+
+    if (mode === "scan") {
+      openBarcodeScanner((code) => {
+        const product = productsCache.find((p) => p.barcode === code);
+        if (!product) {
+          showToast("Produto não encontrado com esse código.");
+          return;
+        }
+        addToCart(product);
+      });
+    }
+  });
+});
+
+$("sale-search-input").addEventListener("input", (e) => {
+  const term = e.target.value.trim().toLowerCase();
+  const container = $("sale-search-results");
+  container.innerHTML = "";
+  if (!term) return;
+  productsCache
+    .filter((p) => p.name.toLowerCase().includes(term))
+    .slice(0, 8)
+    .forEach((p) => {
+      const el = document.createElement("div");
+      el.className = "product-card";
+      el.innerHTML = `
+        <div class="product-info">
+          <div class="product-name">${escapeHtml(p.name)}</div>
+          <div class="product-meta">${formatCurrency(p.price || 0)} · ${p.quantity} em estoque</div>
+        </div>
+      `;
+      el.addEventListener("click", () => {
+        addToCart(p);
+        $("sale-search-input").value = "";
+        container.innerHTML = "";
+      });
+      container.appendChild(el);
+    });
+});
+
+$("finalize-sale-btn").addEventListener("click", () => {
+  showToast("Em breve: fechar essa venda de verdade (isso vem na próxima parte).");
 });
 
 // ============================================================
