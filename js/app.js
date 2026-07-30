@@ -71,12 +71,12 @@ auth.onAuthStateChanged(async (user) => {
   const profileDoc = await db.collection("users").doc(user.uid).get();
 
   if (!profileDoc.exists) {
-    // conta existe no Auth mas ninguém cadastrou o perfil dela ainda
-    loginError.textContent = "Sua conta não tem um perfil cadastrado. Fale com o dono da loja.";
-    loginError.hidden = false;
-    auth.signOut();
-    return;
-  }
+  loginError.textContent = "Sua conta não tem um perfil cadastrado. Fale com o dono da loja.";
+  loginError.hidden = false;
+  hideLoadingScreen();
+  auth.signOut();
+  return;
+}
 
   const profile = profileDoc.data();
   currentUser = { uid: user.uid, name: profile.name || user.email, role: profile.role };
