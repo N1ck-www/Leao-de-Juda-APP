@@ -111,6 +111,43 @@
       <p id="products-empty" class="empty-state" hidden>Nenhum produto encontrado.</p>
     </section>
 
+    <!-- ---------- VENDAS ---------- -->
+    <section id="view-vendas" class="view">
+      <h2 class="view-title">Vendas</h2>
+
+      <div class="chip-row">
+        <button class="chip active" data-add-mode="scan">📷 Escanear</button>
+        <button class="chip" data-add-mode="search">🔍 Buscar</button>
+      </div>
+
+      <div id="sale-search-row" class="search-row" hidden>
+        <input type="search" id="sale-search-input" placeholder="Buscar produto por nome...">
+        <div id="sale-search-results" class="product-list"></div>
+      </div>
+
+      <h3 class="section-subtitle">Carrinho</h3>
+      <div id="cart-list" class="product-list"></div>
+      <p id="cart-empty" class="empty-state">Carrinho vazio. Escaneia ou busca um produto.</p>
+
+      <div class="card-form" style="margin-top:16px;">
+        <label class="field">
+          <span>Desconto (R$)</span>
+          <input type="number" id="sale-discount" min="0" step="0.01" value="0">
+        </label>
+        <label class="field">
+          <span>Observação (opcional)</span>
+          <input type="text" id="sale-notes">
+        </label>
+      </div>
+
+      <div class="card-form" style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+        <span style="font-size:14px; color:var(--text-muted);">Total</span>
+        <span id="sale-total" class="debt-value" style="font-size:22px;">R$ 0,00</span>
+      </div>
+
+      <button type="button" id="finalize-sale-btn" class="btn btn-primary btn-block" style="margin-top:16px;">Finalizar venda</button>
+    </section>
+
     <!-- ---------- HISTÓRICO ---------- -->
     <section id="view-historico" class="view">
       <h2 class="view-title">Histórico</h2>
