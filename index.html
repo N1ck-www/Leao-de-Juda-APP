@@ -55,7 +55,7 @@
     </div>
     <div class="topbar-user">
       <span id="user-name"></span>
-      <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair"><strong>x</strong></button>
+      <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair">⏻</button>
     </div>
   </header>
 
@@ -215,11 +215,11 @@
       </label>
       <label class="field">
         <span>Código de barras (opcional)</span>
-        <input type="text" id="product-barcode" placeholder="Digite ou cole o código">
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="product-barcode" placeholder="Digite ou cole o código" style="flex:1;">
+          <button type="button" id="scan-barcode-btn" class="btn btn-primary" style="flex-shrink:0; padding:13px 16px;">📷</button>
+        </div>
       </label>
-      <button type="button" id="scan-barcode-btn" class="btn btn-block" style="margin-bottom:12px; background:var(--bg-elevated-2); color:var(--accent-strong);">
-  📷 Escanear código de barras
-</button>
       <div class="field-row">
         <label class="field">
           <span>Quantidade</span>
@@ -272,15 +272,11 @@
       </label>
 
       <div id="debt-initial-charge-fields">
-        <!-- IA temporariamente desativada
-<button type="button" id="scan-receipt-btn" class="btn btn-block" style="background:var(--bg-elevated-2); color:var(--accent-strong); margin-bottom:14px; display:flex; align-items:center; justify-content:center; gap:8px;">
-  📷 Ler notinha com IA
-</button>
-<input type="file" id="receipt-photo-input" accept="image/*" capture="environment" hidden>
--->
-<p id="scan-status" class="error-text" style="margin-bottom:14px;">
-  📷 Leitura de notinha com IA temporariamente desativada. Preencha manualmente.
-</p>
+        <button type="button" id="scan-receipt-btn" class="btn btn-block" style="background:var(--bg-elevated-2); color:var(--accent-strong); margin-bottom:14px; display:flex; align-items:center; justify-content:center; gap:8px;">
+          📷 Ler notinha com IA
+        </button>
+        <input type="file" id="receipt-photo-input" accept="image/*" capture="environment" hidden>
+        <p id="scan-status" class="success-text" hidden></p>
 
         <label class="field">
           <span>Produto</span>
