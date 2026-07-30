@@ -17,7 +17,6 @@ let searchTerm = "";
 let unsubProducts = null;
 let unsubHistory = null;
 let unsubTeam = null;
-let unsubDebts = null; 
 
 // ---------- atalhos de elementos ----------
 const $ = (id) => document.getElementById(id);
@@ -71,12 +70,12 @@ auth.onAuthStateChanged(async (user) => {
   const profileDoc = await db.collection("users").doc(user.uid).get();
 
   if (!profileDoc.exists) {
-  loginError.textContent = "Sua conta não tem um perfil cadastrado. Fale com o dono da loja.";
-  loginError.hidden = false;
-  hideLoadingScreen();
-  auth.signOut();
-  return;
-}
+    // conta existe no Auth mas ninguém cadastrou o perfil dela ainda
+    loginError.textContent = "Sua conta não tem um perfil cadastrado. Fale com o dono da loja.";
+    loginError.hidden = false;
+    auth.signOut();
+    return;
+  }
 
   const profile = profileDoc.data();
   currentUser = { uid: user.uid, name: profile.name || user.email, role: profile.role };
@@ -121,7 +120,6 @@ function switchView(view) {
   $("fab-add-product").hidden = !(view === "produtos" && currentUser?.role === "dono");
   $("fab-add-debt").hidden = !(view === "dividas" && currentUser?.role === "dono");
 }
-
 switchView("dashboard");
 
 // ============================================================
@@ -166,6 +164,7 @@ $("scanner-cancel-btn").addEventListener("click", closeBarcodeScanner);
 // ============================================================
 // PRODUTOS
 // ============================================================
+
 function startProductsListener() {
   unsubProducts = db.collection("products").orderBy("name")
     .onSnapshot((snap) => {
@@ -212,9 +211,9 @@ function productCardEl(p) {
       : `<div class="product-thumb placeholder">📦</div>`}
     <div class="product-info">
       <div class="product-name">
-        <span class="status-dot status-\( {status}" style="display:inline-block;margin-right:6px;"></span> \){escapeHtml(p.name)}
+        <span class="status-dot status-${status}" style="display:inline-block;margin-right:6px;"></span>${escapeHtml(p.name)}
       </div>
-      <div class="product-meta">\( {escapeHtml(p.category || "Sem categoria")} \){p.barcode ? ` · #${escapeHtml(p.barcode)}` : ""}</div>
+      <div class="product-meta">${escapeHtml(p.category || "Sem categoria")}${p.barcode ? ` · #${escapeHtml(p.barcode)}` : ""}</div>
     </div>
     <div class="qty-control">
       <button class="qty-btn" data-action="dec">−</button>
@@ -608,6 +607,7 @@ if ("serviceWorker" in navigator) {
 
 let debtsCache = [];
 let debtSearchTerm = "";
+let unsubDebts = null;
 
 function chargesTotal(d) {
   return (d.charges || []).reduce((sum, c) => sum + (c.amount || 0), 0);
@@ -740,7 +740,7 @@ function debtCardEl(d) {
       <span class="debt-value">${formatCurrency(remaining)}</span>
       <span class="debt-value-label">${remaining <= 0 ? "quitado" : "restante"}</span>
     </div>
-    ${canCharge ? `<button class="whatsapp-btn" data-action="charge" title="Cobrar via WhatsApp"><svg viewBox="0 0 32 32" width="18" height="18" fill="white"><path d="M16.001 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.257.594 4.446 1.72 6.376L3.2 28.8l6.63-1.74a12.75 12.75 0 0 0 6.17 1.57h.005c7.06 0 12.8-5.74 12.8-12.8s-5.74-12.8-12.804-12.8zm0 23.36a10.55 10.55 0 0 1-5.38-1.47l-.386-.23-3.996 1.05 1.067-3.897-.252-.4a10.53 10.53 0 0 1-1.614-5.613c0-5.83 4.744-10.573 10.564-10.573 2.823 0 5.476 1.1 7.47 3.096a10.5 10.5 0 0 1 3.093 7.478c0 5.83-4.744 10.56-10.566 10.56zm5.79-7.91c-.317-.159-1.878-.927-2.17-1.033-.29-.106-.502-.159-.714.16-.212.317-.82 1.032-1.005 1.244-.185.212-.37.238-.687.08-.317-.16-1.338-.494-2.548-1.573-.942-.84-1.578-1.878-1.763-2.196-.185-.317-.02-.489.14-.647.144-.143.317-.37.476-.556.16-.185.212-.317.318-.53.106-.212.053-.397-.026-.556-.08-.16-.714-1.72-.978-2.355-.258-.62-.52-.536-.714-.546-.185-.008-.397-.01-.61-.01a1.17 1.17 0 0 0-.846.397c-.29.317-1.11 1.085-1.11 2.646s1.137 3.07 1.296 3.282c.16.212 2.238 3.418 5.42 4.793.757.327 1.348.522 1.809.668.76.242 1.452.208 1.998.126.61-.09 1.878-.768 2.143-1.51.265-.74.265-1.376.185-1.51-.08-.132-.29-.212-.61-.37z"/></svg></button>` : ""}
+    ${canCharge ? `<button class="whatsapp-btn" data-action="charge" title="Cobrar via WhatsApp"><svg viewBox="0 0 32 32" width="17" height="17" fill="white" style="transform: translate(-0.5px, 1px);"><path d="M16.001 3.2c-7.06 0-12.8 5.74-12.8 12.8 0 2.257.594 4.446 1.72 6.376L3.2 28.8l6.63-1.74a12.75 12.75 0 0 0 6.17 1.57h.005c7.06 0 12.8-5.74 12.8-12.8s-5.74-12.8-12.804-12.8zm0 23.36a10.55 10.55 0 0 1-5.38-1.47l-.386-.23-3.996 1.05 1.067-3.897-.252-.4a10.53 10.53 0 0 1-1.614-5.613c0-5.83 4.744-10.573 10.564-10.573 2.823 0 5.476 1.1 7.47 3.096a10.5 10.5 0 0 1 3.093 7.478c0 5.83-4.744 10.56-10.566 10.56zm5.79-7.91c-.317-.159-1.878-.927-2.17-1.033-.29-.106-.502-.159-.714.16-.212.317-.82 1.032-1.005 1.244-.185.212-.37.238-.687.08-.317-.16-1.338-.494-2.548-1.573-.942-.84-1.578-1.878-1.763-2.196-.185-.317-.02-.489.14-.647.144-.143.317-.37.476-.556.16-.185.212-.317.318-.53.106-.212.053-.397-.026-.556-.08-.16-.714-1.72-.978-2.355-.258-.62-.52-.536-.714-.546-.185-.008-.397-.01-.61-.01a1.17 1.17 0 0 0-.846.397c-.29.317-1.11 1.085-1.11 2.646s1.137 3.07 1.296 3.282c.16.212 2.238 3.418 5.42 4.793.757.327 1.348.522 1.809.668.76.242 1.452.208 1.998.126.61-.09 1.878-.768 2.143-1.51.265-.74.265-1.376.185-1.51-.08-.132-.29-.212-.61-.37z"/></svg></button>` : ""}
   `;
   if (canCharge) {
     el.querySelector('[data-action="charge"]').addEventListener("click", (e) => {
@@ -769,12 +769,76 @@ $("debt-installments").addEventListener("change", (e) => {
   $("debt-installment-count-field").hidden = !e.target.checked;
 });
 
-// IA temporariamente desativada
-// $("scan-receipt-btn").addEventListener("click", () => $("receipt-photo-input").click());
-//
-// $("receipt-photo-input").addEventListener("change", async (e) => {
-//   ...
-// });
+$("scan-receipt-btn").addEventListener("click", () => $("receipt-photo-input").click());
+
+$("receipt-photo-input").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const statusEl = $("scan-status");
+  statusEl.hidden = false;
+  statusEl.className = "success-text";
+  statusEl.textContent = "Lendo notinha...";
+
+  try {
+    const imageDataUrl = await compressImage(file, 1024, 0.85);
+    const base64 = imageDataUrl.split(",")[1];
+
+    const prompt = `Você vai analisar a foto de uma notinha de venda fiado (compra a prazo), escrita à mão em português, de uma loja de eletrônicos.
+
+Extraia estas informações e responda APENAS com um JSON válido, sem nenhum texto antes ou depois, no formato exato:
+
+{
+  "customerName": "nome do cliente, sem títulos como 'funcionário'",
+  "product": "descrição do(s) produto(s), resumida",
+  "amount": valor numérico total (use ponto decimal, sem R$, sem vírgula),
+  "date": "AAAA-MM-DD",
+  "dueDate": "AAAA-MM-DD ou null se não houver data prevista de pagamento"
+}
+
+Regras importantes:
+- Se houver valor circulado, corrigido ou reescrito por cima, use o valor final/mais recente, não o riscado.
+- Se a data estiver no formato DD/MM/AA, converta pro formato AAAA-MM-DD (assuma 20AA para o ano).
+- Se não conseguir identificar um campo com confiança, use null nesse campo.
+- Nunca invente informação que não está na notinha.`;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: "image/jpeg", data: base64 } },
+            ],
+          }],
+        }),
+      }
+    );
+
+    if (!response.ok) throw new Error("Falha na requisição");
+
+    const result = await response.json();
+    let text = result.candidates[0].content.parts[0].text.trim();
+    text = text.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+    const data = JSON.parse(text);
+
+    if (data.customerName) $("debt-customer-name").value = data.customerName;
+    if (data.product) $("debt-product").value = data.product;
+    if (data.amount) $("debt-total-amount").value = data.amount;
+    if (data.date) $("debt-date").value = data.date;
+    if (data.dueDate) $("debt-due-date").value = data.dueDate;
+
+    statusEl.textContent = "Notinha lida! Confere os dados antes de salvar.";
+  } catch (err) {
+    statusEl.className = "error-text";
+    statusEl.textContent = "Não consegui ler essa notinha. Preenche manualmente.";
+  } finally {
+    $("receipt-photo-input").value = "";
+  }
+});
 
 function openDebtModal(debt) {
   debtForm.reset();
