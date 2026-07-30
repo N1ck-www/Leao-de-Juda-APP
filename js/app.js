@@ -17,6 +17,7 @@ let searchTerm = "";
 let unsubProducts = null;
 let unsubHistory = null;
 let unsubTeam = null;
+let unsubDebts = null; 
 
 // ---------- atalhos de elementos ----------
 const $ = (id) => document.getElementById(id);
