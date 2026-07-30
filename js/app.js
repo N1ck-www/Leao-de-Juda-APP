@@ -608,7 +608,6 @@ if ("serviceWorker" in navigator) {
 
 let debtsCache = [];
 let debtSearchTerm = "";
-let unsubDebts = null;
 
 function chargesTotal(d) {
   return (d.charges || []).reduce((sum, c) => sum + (c.amount || 0), 0);
