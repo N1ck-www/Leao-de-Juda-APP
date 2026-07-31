@@ -701,15 +701,19 @@ function summarizeSales(sales) {
     if (porPagamento[s.paymentMethod] !== undefined) porPagamento[s.paymentMethod] += s.total || 0;
   });
 
-  const produtoContagem = {};
+  const produtoStats = {};
   sales.forEach((s) => {
     (s.items || []).forEach((i) => {
-      produtoContagem[i.name] = (produtoContagem[i.name] || 0) + i.qty;
+      if (!produtoStats[i.name]) produtoStats[i.name] = { qty: 0, total: 0 };
+      produtoStats[i.name].qty += i.qty;
+      produtoStats[i.name].total += i.subtotal || i.unitPrice * i.qty;
     });
   });
-  const topProdutos = Object.entries(produtoContagem).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const todosProdutos = Object.entries(produtoStats)
+    .map(([name, stats]) => ({ name, ...stats }))
+    .sort((a, b) => b.qty - a.qty);
 
-  return { totalVendido, numVendas, itensVendidos, porPagamento, topProdutos };
+  return { totalVendido, numVendas, itensVendidos, porPagamento, todosProdutos };
 }
 
 function buildDailyReportMessage(dateStr, summary) {
@@ -723,10 +727,10 @@ function buildDailyReportMessage(dateStr, summary) {
   msg += `• Dinheiro: ${formatCurrency(summary.porPagamento.dinheiro)}\n`;
   msg += `• PIX: ${formatCurrency(summary.porPagamento.pix)}\n`;
   msg += `• Cartão: ${formatCurrency(summary.porPagamento.cartao)}\n`;
-  if (summary.topProdutos.length) {
-    msg += `\n🏆 *TOP PRODUTOS DO DIA*\n`;
-    summary.topProdutos.forEach(([name, qty], i) => {
-      msg += `${i + 1}. ${name} — ${qty} un\n`;
+  if (summary.todosProdutos.length) {
+    msg += `\n🛍️ *PRODUTOS VENDIDOS*\n`;
+    summary.todosProdutos.forEach((p) => {
+      msg += `• ${p.qty}x ${p.name} — ${formatCurrency(p.total)}\n`;
     });
   }
   msg += `\n— Relatório do app Leão de Judá`;
@@ -766,13 +770,19 @@ async function loadDailySummary(dateStr) {
   }
 
   const summary = summarizeSales(currentDailySales);
+  const produtosHtml = summary.todosProdutos
+    .map((p) => `${p.qty}x ${escapeHtml(p.name)} — ${formatCurrency(p.total)}`)
+    .join("<br>");
+
   $("daily-summary-content").innerHTML = `
     💰 Total vendido: <strong style="color:var(--text);">${formatCurrency(summary.totalVendido)}</strong><br>
     🧾 Vendas: ${summary.numVendas}<br>
     📦 Itens vendidos: ${summary.itensVendidos}<br><br>
     💵 Dinheiro: ${formatCurrency(summary.porPagamento.dinheiro)}<br>
     📱 PIX: ${formatCurrency(summary.porPagamento.pix)}<br>
-    💳 Cartão: ${formatCurrency(summary.porPagamento.cartao)}
+    💳 Cartão: ${formatCurrency(summary.porPagamento.cartao)}<br><br>
+    <strong style="color:var(--text);">Produtos vendidos:</strong><br>
+    ${produtosHtml}
   `;
 }
 
