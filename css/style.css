@@ -592,3 +592,7 @@ button, input { font-family: inherit; }
   opacity: 0.4;
   cursor: not-allowed;
 }
+/* o modal de confirmação sempre fica por cima de qualquer outro modal */
+#confirm-modal {
+  z-index: 60;
+}
