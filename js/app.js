@@ -98,6 +98,7 @@ function applyRoleUI() {
   const isDono = currentUser.role === "dono";
   $("nav-equipe").hidden = !isDono;
   $("nav-dividas").hidden = !isDono;
+  $("daily-summary-btn").hidden = !isDono;
   $("fab-add-product").hidden = !isDono || currentActiveView !== "produtos";
 }
 
@@ -672,6 +673,152 @@ function showReceipt(items, subtotal, discount, total, paymentMethod) {
 
 $("receipt-close-btn").addEventListener("click", () => {
   $("receipt-modal").hidden = true;
+});
+
+// ============================================================
+// RESUMO DO DIA (vendas) — só o dono
+// ============================================================
+
+let currentDailySales = [];
+let hasSharedDailySummary = false;
+
+function getDayRange(dateStr) {
+  const start = new Date(dateStr + "T00:00:00");
+  const end = new Date(dateStr + "T23:59:59.999");
+  return { start, end };
+}
+
+function summarizeSales(sales) {
+  const totalVendido = sales.reduce((sum, s) => sum + (s.total || 0), 0);
+  const numVendas = sales.length;
+  const itensVendidos = sales.reduce(
+    (sum, s) => sum + (s.items || []).reduce((s2, i) => s2 + i.qty, 0),
+    0
+  );
+
+  const porPagamento = { dinheiro: 0, pix: 0, cartao: 0 };
+  sales.forEach((s) => {
+    if (porPagamento[s.paymentMethod] !== undefined) porPagamento[s.paymentMethod] += s.total || 0;
+  });
+
+  const produtoContagem = {};
+  sales.forEach((s) => {
+    (s.items || []).forEach((i) => {
+      produtoContagem[i.name] = (produtoContagem[i.name] || 0) + i.qty;
+    });
+  });
+  const topProdutos = Object.entries(produtoContagem).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+  return { totalVendido, numVendas, itensVendidos, porPagamento, topProdutos };
+}
+
+function buildDailyReportMessage(dateStr, summary) {
+  const [y, m, d] = dateStr.split("-");
+  let msg = `📊 *Leão de Judá* — Resumo do dia ${d}/${m}/${y}\n\n`;
+  msg += `💰 *VENDAS*\n`;
+  msg += `• Total vendido: ${formatCurrency(summary.totalVendido)}\n`;
+  msg += `• Quantidade de vendas: ${summary.numVendas}\n`;
+  msg += `• Itens vendidos: ${summary.itensVendidos} unidades\n\n`;
+  msg += `💳 *FORMAS DE PAGAMENTO*\n`;
+  msg += `• Dinheiro: ${formatCurrency(summary.porPagamento.dinheiro)}\n`;
+  msg += `• PIX: ${formatCurrency(summary.porPagamento.pix)}\n`;
+  msg += `• Cartão: ${formatCurrency(summary.porPagamento.cartao)}\n`;
+  if (summary.topProdutos.length) {
+    msg += `\n🏆 *TOP PRODUTOS DO DIA*\n`;
+    summary.topProdutos.forEach(([name, qty], i) => {
+      msg += `${i + 1}. ${name} — ${qty} un\n`;
+    });
+  }
+  msg += `\n— Relatório do app Leão de Judá`;
+  return msg;
+}
+
+$("daily-summary-btn").addEventListener("click", () => {
+  $("daily-summary-date").value = todayStr();
+  $("daily-summary-modal").hidden = false;
+  loadDailySummary(todayStr());
+});
+
+$("daily-summary-close").addEventListener("click", () => {
+  $("daily-summary-modal").hidden = true;
+});
+
+$("daily-summary-date").addEventListener("change", (e) => {
+  loadDailySummary(e.target.value);
+});
+
+async function loadDailySummary(dateStr) {
+  hasSharedDailySummary = false;
+  $("daily-summary-delete-btn").disabled = true;
+  $("daily-summary-content").innerHTML = "Carregando...";
+
+  const { start, end } = getDayRange(dateStr);
+  const snap = await db.collection("sales")
+    .where("createdAt", ">=", start)
+    .where("createdAt", "<=", end)
+    .get();
+
+  currentDailySales = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  if (currentDailySales.length === 0) {
+    $("daily-summary-content").innerHTML = "Nenhuma venda registrada nesse dia.";
+    return;
+  }
+
+  const summary = summarizeSales(currentDailySales);
+  $("daily-summary-content").innerHTML = `
+    💰 Total vendido: <strong style="color:var(--text);">${formatCurrency(summary.totalVendido)}</strong><br>
+    🧾 Vendas: ${summary.numVendas}<br>
+    📦 Itens vendidos: ${summary.itensVendidos}<br><br>
+    💵 Dinheiro: ${formatCurrency(summary.porPagamento.dinheiro)}<br>
+    📱 PIX: ${formatCurrency(summary.porPagamento.pix)}<br>
+    💳 Cartão: ${formatCurrency(summary.porPagamento.cartao)}
+  `;
+}
+
+$("daily-summary-copy-btn").addEventListener("click", async () => {
+  if (currentDailySales.length === 0) {
+    showToast("Nada pra copiar nesse dia.");
+    return;
+  }
+  const summary = summarizeSales(currentDailySales);
+  const text = buildDailyReportMessage($("daily-summary-date").value, summary);
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast("Resumo copiado!");
+    hasSharedDailySummary = true;
+    $("daily-summary-delete-btn").disabled = false;
+  } catch (err) {
+    showToast("Não consegui copiar. Tenta enviar por WhatsApp.");
+  }
+});
+
+$("daily-summary-whatsapp-btn").addEventListener("click", () => {
+  if (currentDailySales.length === 0) {
+    showToast("Nada pra enviar nesse dia.");
+    return;
+  }
+  const summary = summarizeSales(currentDailySales);
+  const text = buildDailyReportMessage($("daily-summary-date").value, summary);
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+  hasSharedDailySummary = true;
+  $("daily-summary-delete-btn").disabled = false;
+});
+
+$("daily-summary-delete-btn").addEventListener("click", async () => {
+  if (!hasSharedDailySummary) return;
+  const ok = await confirmDialog(`Apagar ${currentDailySales.length} venda(s) desse dia? Essa ação não pode ser desfeita.`);
+  if (!ok) return;
+
+  const batch = db.batch();
+  currentDailySales.forEach((s) => {
+    batch.delete(db.collection("sales").doc(s.id));
+  });
+  await batch.commit();
+
+  showToast("Vendas do dia apagadas.");
+  currentDailySales = [];
+  $("daily-summary-modal").hidden = true;
 });
 
 // ============================================================
