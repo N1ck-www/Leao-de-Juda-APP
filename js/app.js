@@ -568,7 +568,7 @@ $("sale-search-input").addEventListener("input", (e) => {
     });
 });
 
-<!-- ====================== MODAL DE PAGAMENTO ====================== -->
+//<!-- ====================== MODAL DE PAGAMENTO ====================== -->
 <div id="payment-modal" class="modal-backdrop" hidden style="align-items:center;">
   <div class="modal" style="max-width:400px; margin:auto;">
     <div class="modal-header">
@@ -584,7 +584,7 @@ $("sale-search-input").addEventListener("input", (e) => {
   </div>
 </div>
 
-<!-- ====================== MODAL DE COMPROVANTE ====================== -->
+//<!-- ====================== MODAL DE COMPROVANTE ====================== -->
 <div id="receipt-modal" class="modal-backdrop" hidden style="align-items:center;">
   <div class="modal" style="max-width:420px; margin:auto;">
     <div class="modal-header">
