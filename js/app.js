@@ -568,34 +568,111 @@ $("sale-search-input").addEventListener("input", (e) => {
     });
 });
 
-//<!-- ====================== MODAL DE PAGAMENTO ====================== -->
-<div id="payment-modal" class="modal-backdrop" hidden style="align-items:center;">
-  <div class="modal" style="max-width:400px; margin:auto;">
-    <div class="modal-header">
-      <h3>Forma de pagamento</h3>
-      <button class="icon-btn" id="payment-modal-close" aria-label="Fechar">✕</button>
-    </div>
-    <p style="color:var(--text-muted); font-size:14px; margin:0 0 16px;">Total: <strong id="payment-modal-total" style="color:var(--text);"></strong></p>
-    <div style="display:flex; flex-direction:column; gap:10px;">
-      <button type="button" class="btn btn-primary btn-block" data-payment="dinheiro">💵 Dinheiro</button>
-      <button type="button" class="btn btn-primary btn-block" data-payment="pix">📱 PIX</button>
-      <button type="button" class="btn btn-primary btn-block" data-payment="cartao">💳 Cartão</button>
-    </div>
-  </div>
-</div>
+$("finalize-sale-btn").addEventListener("click", () => {
+  if (cart.length === 0) {
+    showToast("Carrinho vazio.");
+    return;
+  }
+  const subtotal = cart.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
+  const discount = parseFloat($("sale-discount").value) || 0;
+  const total = Math.max(0, subtotal - discount);
+  $("payment-modal-total").textContent = formatCurrency(total);
+  $("payment-modal").hidden = false;
+});
 
-//<!-- ====================== MODAL DE COMPROVANTE ====================== -->
-<div id="receipt-modal" class="modal-backdrop" hidden style="align-items:center;">
-  <div class="modal" style="max-width:420px; margin:auto;">
-    <div class="modal-header">
-      <h3>Venda concluída ✅</h3>
-    </div>
-    <div id="receipt-content" style="font-family:var(--font-mono); font-size:13.5px; color:var(--text-muted); margin-bottom:16px; line-height:1.6;"></div>
-    <button type="button" id="receipt-close-btn" class="btn btn-primary btn-block">Fechar</button>
-  </div>
-</div>
+$("payment-modal-close").addEventListener("click", () => {
+  $("payment-modal").hidden = true;
+});
 
-<div id="toast" class="toast" hidden></div>
+document.querySelectorAll("[data-payment]").forEach((btn) => {
+  btn.addEventListener("click", () => finalizeSale(btn.dataset.payment));
+});
+
+async function finalizeSale(paymentMethod) {
+  $("payment-modal").hidden = true;
+
+  const subtotal = cart.reduce((sum, i) => sum + i.unitPrice * i.qty, 0);
+  const discount = parseFloat($("sale-discount").value) || 0;
+  const total = Math.max(0, subtotal - discount);
+  const notes = $("sale-notes").value.trim();
+
+  const saleItems = cart.map((item) => ({
+    productId: item.productId,
+    name: item.name,
+    qty: item.qty,
+    unitPrice: item.unitPrice,
+    subtotal: item.unitPrice * item.qty,
+  }));
+
+  try {
+    const batch = db.batch();
+
+    const saleRef = db.collection("sales").doc();
+    batch.set(saleRef, {
+      items: saleItems,
+      subtotal,
+      discount,
+      total,
+      paymentMethod,
+      notes,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdBy: currentUser.name,
+      status: "completed",
+    });
+
+    cart.forEach((item) => {
+      const product = productsCache.find((p) => p.id === item.productId);
+      const newQty = Math.max(0, (product?.quantity || 0) - item.qty);
+      const productRef = db.collection("products").doc(item.productId);
+      batch.update(productRef, {
+        quantity: newQty,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser.name,
+      });
+    });
+
+    await batch.commit();
+
+    for (const item of cart) {
+      const product = productsCache.find((p) => p.id === item.productId);
+      const newQty = Math.max(0, (product?.quantity || 0) - item.qty);
+      await logHistory({
+        productName: item.name,
+        action: "Vendeu",
+        detail: `${item.qty} un. — ${product?.quantity || 0} → ${newQty}`,
+      });
+    }
+
+    showReceipt(saleItems, subtotal, discount, total, paymentMethod);
+
+    cart = [];
+    $("sale-discount").value = "0";
+    $("sale-notes").value = "";
+    renderCart();
+  } catch (err) {
+    showToast("Não deu pra finalizar a venda. Tenta de novo.");
+  }
+}
+
+function showReceipt(items, subtotal, discount, total, paymentMethod) {
+  const paymentLabels = { dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão" };
+  const itemsHtml = items
+    .map((i) => `${i.qty}x ${escapeHtml(i.name)} — ${formatCurrency(i.subtotal)}`)
+    .join("<br>");
+
+  $("receipt-content").innerHTML = `
+    ${itemsHtml}<br><br>
+    Subtotal: ${formatCurrency(subtotal)}<br>
+    ${discount > 0 ? `Desconto: -${formatCurrency(discount)}<br>` : ""}
+    <strong style="color:var(--text); font-size:16px;">Total: ${formatCurrency(total)}</strong><br>
+    Pagamento: ${paymentLabels[paymentMethod]}
+  `;
+  $("receipt-modal").hidden = false;
+}
+
+$("receipt-close-btn").addEventListener("click", () => {
+  $("receipt-modal").hidden = true;
+});
 
 // ============================================================
 // DASHBOARD
