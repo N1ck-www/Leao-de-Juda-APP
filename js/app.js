@@ -568,9 +568,34 @@ $("sale-search-input").addEventListener("input", (e) => {
     });
 });
 
-$("finalize-sale-btn").addEventListener("click", () => {
-  showToast("Em breve: fechar essa venda de verdade (isso vem na próxima parte).");
-});
+<!-- ====================== MODAL DE PAGAMENTO ====================== -->
+<div id="payment-modal" class="modal-backdrop" hidden style="align-items:center;">
+  <div class="modal" style="max-width:400px; margin:auto;">
+    <div class="modal-header">
+      <h3>Forma de pagamento</h3>
+      <button class="icon-btn" id="payment-modal-close" aria-label="Fechar">✕</button>
+    </div>
+    <p style="color:var(--text-muted); font-size:14px; margin:0 0 16px;">Total: <strong id="payment-modal-total" style="color:var(--text);"></strong></p>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button type="button" class="btn btn-primary btn-block" data-payment="dinheiro">💵 Dinheiro</button>
+      <button type="button" class="btn btn-primary btn-block" data-payment="pix">📱 PIX</button>
+      <button type="button" class="btn btn-primary btn-block" data-payment="cartao">💳 Cartão</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====================== MODAL DE COMPROVANTE ====================== -->
+<div id="receipt-modal" class="modal-backdrop" hidden style="align-items:center;">
+  <div class="modal" style="max-width:420px; margin:auto;">
+    <div class="modal-header">
+      <h3>Venda concluída ✅</h3>
+    </div>
+    <div id="receipt-content" style="font-family:var(--font-mono); font-size:13.5px; color:var(--text-muted); margin-bottom:16px; line-height:1.6;"></div>
+    <button type="button" id="receipt-close-btn" class="btn btn-primary btn-block">Fechar</button>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
 
 // ============================================================
 // DASHBOARD
