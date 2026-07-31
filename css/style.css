@@ -586,3 +586,9 @@ button, input { font-family: inherit; }
 .whatsapp-btn:active {
   transform: scale(0.9);
 }
+
+/* botão desabilitado (trava de segurança antes de apagar) */
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
