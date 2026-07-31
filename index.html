@@ -108,6 +108,10 @@
     <section id="view-vendas" class="view">
       <h2 class="view-title">Vendas</h2>
 
+      <button type="button" id="daily-summary-btn" class="btn" style="background:var(--bg-elevated-2); color:var(--accent-strong); margin-bottom:14px; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;" hidden>
+        📅 Resumo do dia
+      </button>
+
       <div class="chip-row">
         <button class="chip active" data-add-mode="scan">📷 Escanear</button>
         <button class="chip" data-add-mode="search">🔍 Buscar</button>
@@ -449,6 +453,27 @@
     </div>
     <div id="receipt-content" style="font-family:var(--font-mono); font-size:13.5px; color:var(--text-muted); margin-bottom:16px; line-height:1.6;"></div>
     <button type="button" id="receipt-close-btn" class="btn btn-primary btn-block">Fechar</button>
+  </div>
+</div>
+
+<!-- ====================== MODAL DE RESUMO DO DIA ====================== -->
+<div id="daily-summary-modal" class="modal-backdrop" hidden style="align-items:center;">
+  <div class="modal" style="max-width:440px; margin:auto;">
+    <div class="modal-header">
+      <h3>Resumo do dia</h3>
+      <button class="icon-btn" id="daily-summary-close" aria-label="Fechar">✕</button>
+    </div>
+    <label class="field">
+      <span>Data</span>
+      <input type="date" id="daily-summary-date">
+    </label>
+    <div id="daily-summary-content" style="margin:16px 0; font-size:14px; line-height:1.7; color:var(--text-muted);"></div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button type="button" id="daily-summary-copy-btn" class="btn" style="background:var(--bg-elevated-2); color:var(--text);">📋 Copiar resumo</button>
+      <button type="button" id="daily-summary-whatsapp-btn" class="btn btn-primary">Enviar por WhatsApp</button>
+      <button type="button" id="daily-summary-delete-btn" class="btn btn-danger" disabled>Apagar vendas desse dia</button>
+    </div>
+    <p class="error-text" style="margin-top:10px; margin-bottom:0;">Copie ou envie o resumo antes de apagar.</p>
   </div>
 </div>
 
