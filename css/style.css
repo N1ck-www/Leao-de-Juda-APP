@@ -596,3 +596,48 @@ button, input { font-family: inherit; }
 #confirm-modal {
   z-index: 60;
 }
+/* ---------------- TELAS GRANDES (computador) ---------------- */
+@media (min-width: 900px) {
+  #main-content {
+    max-width: 1080px;
+    padding: 32px 40px;
+  }
+
+  .topbar {
+    padding: 18px 40px;
+  }
+
+  .topbar-brand {
+    font-size: 17px;
+  }
+
+  .view-title {
+    font-size: 26px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .stat-card {
+    padding: 20px;
+  }
+
+  .stat-value {
+    font-size: 32px;
+  }
+
+  .stat-label {
+    font-size: 13.5px;
+  }
+
+  .product-card {
+    padding: 14px;
+  }
+
+  .bottom-nav {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+}
