@@ -882,12 +882,6 @@ $("daily-summary-whatsapp-btn").addEventListener("click", () => {
   hasSharedDailySummary = true;
   $("daily-summary-delete-btn").disabled = false;
 });
-  const summary = summarizeSales(currentDailySales);
-  const text = buildDailyReportMessage($("daily-summary-date").value, summary);
-  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
-  hasSharedDailySummary = true;
-  $("daily-summary-delete-btn").disabled = false;
-});
 
 $("daily-summary-delete-btn").addEventListener("click", async () => {
   if (!hasSharedDailySummary) return;
