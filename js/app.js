@@ -769,10 +769,26 @@ async function loadDailySummary(dateStr) {
     return;
   }
 
-  const summary = summarizeSales(currentDailySales);
+  const activeSales = currentDailySales.filter((s) => s.status !== "cancelled");
+  const summary = summarizeSales(activeSales);
   const produtosHtml = summary.todosProdutos
     .map((p) => `${p.qty}x ${escapeHtml(p.name)} — ${formatCurrency(p.total)}`)
-    .join("<br>");
+    .join("<br>") || "Nenhuma venda ativa nesse dia.";
+
+  const paymentLabels = { dinheiro: "Dinheiro", pix: "PIX", cartao: "Cartão" };
+  const vendasHtml = currentDailySales.map((s) => {
+    const cancelled = s.status === "cancelled";
+    const itemsText = (s.items || []).map((i) => `${i.qty}x ${i.name}`).join(", ");
+    return `
+      <div class="sale-row ${cancelled ? "sale-row-cancelled" : ""}">
+        <div>
+          <div>${escapeHtml(itemsText)}</div>
+          <div style="font-size:12px; color:var(--text-muted);">${formatCurrency(s.total)} · ${paymentLabels[s.paymentMethod] || s.paymentMethod}${cancelled ? " · CANCELADA" : ""}</div>
+        </div>
+        ${!cancelled ? `<button type="button" class="btn-cancel-sale" data-sale-id="${s.id}">Cancelar</button>` : ""}
+      </div>
+    `;
+  }).join("");
 
   $("daily-summary-content").innerHTML = `
     💰 Total vendido: <strong style="color:var(--text);">${formatCurrency(summary.totalVendido)}</strong><br>
@@ -782,16 +798,67 @@ async function loadDailySummary(dateStr) {
     📱 PIX: ${formatCurrency(summary.porPagamento.pix)}<br>
     💳 Cartão: ${formatCurrency(summary.porPagamento.cartao)}<br><br>
     <strong style="color:var(--text);">Produtos vendidos:</strong><br>
-    ${produtosHtml}
+    ${produtosHtml}<br><br>
+    <strong style="color:var(--text);">Vendas do dia:</strong>
+    ${vendasHtml}
   `;
+
+  document.querySelectorAll(".btn-cancel-sale").forEach((btn) => {
+    btn.addEventListener("click", () => cancelSale(btn.dataset.saleId));
+  });
+}
+
+async function cancelSale(saleId) {
+  const sale = currentDailySales.find((s) => s.id === saleId);
+  if (!sale) return;
+
+  const totalItens = (sale.items || []).reduce((sum, i) => sum + i.qty, 0);
+  const ok = await confirmDialog(
+    `Cancelar essa venda e devolver ${totalItens} item(ns) ao estoque?`,
+    "Cancelar venda"
+  );
+  if (!ok) return;
+
+  const batch = db.batch();
+  batch.update(db.collection("sales").doc(saleId), {
+    status: "cancelled",
+    cancelledAt: firebase.firestore.FieldValue.serverTimestamp(),
+    cancelledBy: currentUser.name,
+  });
+
+  sale.items.forEach((item) => {
+    const product = productsCache.find((p) => p.id === item.productId);
+    const newQty = (product?.quantity || 0) + item.qty;
+    batch.update(db.collection("products").doc(item.productId), {
+      quantity: newQty,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedBy: currentUser.name,
+    });
+  });
+
+  await batch.commit();
+
+  for (const item of sale.items) {
+    const product = productsCache.find((p) => p.id === item.productId);
+    const newQty = (product?.quantity || 0) + item.qty;
+    await logHistory({
+      productName: item.name,
+      action: "Cancelou venda (devolução)",
+      detail: `+${item.qty} un. — ${product?.quantity || 0} → ${newQty}`,
+    });
+  }
+
+  showToast("Venda cancelada e estoque devolvido!");
+  loadDailySummary($("daily-summary-date").value);
 }
 
 $("daily-summary-copy-btn").addEventListener("click", async () => {
-  if (currentDailySales.length === 0) {
+  const activeSales = currentDailySales.filter((s) => s.status !== "cancelled");
+  if (activeSales.length === 0) {
     showToast("Nada pra copiar nesse dia.");
     return;
   }
-  const summary = summarizeSales(currentDailySales);
+  const summary = summarizeSales(activeSales);
   const text = buildDailyReportMessage($("daily-summary-date").value, summary);
   try {
     await navigator.clipboard.writeText(text);
@@ -804,10 +871,17 @@ $("daily-summary-copy-btn").addEventListener("click", async () => {
 });
 
 $("daily-summary-whatsapp-btn").addEventListener("click", () => {
-  if (currentDailySales.length === 0) {
+  const activeSales = currentDailySales.filter((s) => s.status !== "cancelled");
+  if (activeSales.length === 0) {
     showToast("Nada pra enviar nesse dia.");
     return;
   }
+  const summary = summarizeSales(activeSales);
+  const text = buildDailyReportMessage($("daily-summary-date").value, summary);
+  window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
+  hasSharedDailySummary = true;
+  $("daily-summary-delete-btn").disabled = false;
+});
   const summary = summarizeSales(currentDailySales);
   const text = buildDailyReportMessage($("daily-summary-date").value, summary);
   window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, "_blank");
