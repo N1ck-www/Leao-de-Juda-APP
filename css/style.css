@@ -641,3 +641,28 @@ button, input { font-family: inherit; }
     margin: 0 auto;
   }
 }
+
+/* ---------------- LISTA DE VENDAS DO DIA (cancelar) ---------------- */
+.sale-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  gap: 10px;
+}
+.sale-row-cancelled {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+.btn-cancel-sale {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
